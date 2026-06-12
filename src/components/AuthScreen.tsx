@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
-import { createConfirmedUser } from "@/lib/api/auth.functions";
 
-type Mode = "signin" | "signup" | "forgot";
+type Mode = "signin" | "signup" | "forgot" | "verify";
 
 const GoogleIcon = () => (
   <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
@@ -34,17 +32,23 @@ export function AuthScreen() {
     try {
       if (mode === "signup") {
         const cleanEmail = email.trim().toLowerCase();
-        await createConfirmedUser({ data: { email: cleanEmail, password } });
-        const login = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signUp({
           email: cleanEmail,
           password,
+          options: {
+            emailRedirectTo: window.location.origin,
+          },
         });
-        if (!login.error) {
+        if (error) throw error;
+
+        if (data.session) {
           setInfo("Hesabın oluşturuldu — içeri alıyorum.");
           return;
         }
 
-        throw login.error;
+        setEmail(cleanEmail);
+        setMode("verify");
+        setInfo("Doğrulama bağlantısı e-postana gönderildi.");
       } else if (mode === "signin") {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
@@ -67,13 +71,42 @@ export function AuthScreen() {
     reset();
     setLoading(true);
     try {
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: window.location.origin,
+        },
       });
-      if (result.error) {
-        const msg = result.error instanceof Error ? result.error.message : String(result.error);
-        setError(translateError(msg));
-      }
+      if (error) throw error;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Google ile giriş başlatılamadı.";
+      setError(translateError(msg));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resendVerification = async () => {
+    reset();
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      setError("Doğrulama maili için e-posta adresini yaz.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: cleanEmail,
+        options: {
+          emailRedirectTo: window.location.origin,
+        },
+      });
+      if (error) throw error;
+      setInfo("Doğrulama bağlantısını tekrar gönderdik.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Doğrulama maili gönderilemedi.";
+      setError(translateError(msg));
     } finally {
       setLoading(false);
     }
@@ -91,7 +124,19 @@ export function AuthScreen() {
         </div>
 
         <div className="mt-8 rounded-3xl bg-card p-6 ring-1 ring-border">
-          {mode !== "forgot" && (
+          {mode === "verify" ? (
+            <VerifyEmailPanel
+              email={email}
+              loading={loading}
+              error={error}
+              info={info}
+              onResend={resendVerification}
+              onBack={() => {
+                setMode("signin");
+                reset();
+              }}
+            />
+          ) : mode !== "forgot" && (
             <div className="mb-5 flex gap-1 rounded-2xl bg-muted p-1">
               <button
                 type="button"
@@ -118,56 +163,58 @@ export function AuthScreen() {
             <h2 className="mb-4 text-lg font-semibold text-foreground">Şifreni sıfırla</h2>
           )}
 
-          <form onSubmit={onSubmit} className="space-y-3">
-            <label className="block">
-              <span className="text-xs font-medium text-muted-foreground">E-posta</span>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-                className="mt-1 w-full rounded-2xl border border-border bg-background px-4 py-3 text-base text-foreground outline-none focus:border-primary"
-              />
-            </label>
-            {mode !== "forgot" && (
+          {mode !== "verify" && (
+            <form onSubmit={onSubmit} className="space-y-3">
               <label className="block">
-                <span className="text-xs font-medium text-muted-foreground">Şifre</span>
+                <span className="text-xs font-medium text-muted-foreground">E-posta</span>
                 <input
-                  type="password"
+                  type="email"
                   required
-                  minLength={6}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
                   className="mt-1 w-full rounded-2xl border border-border bg-background px-4 py-3 text-base text-foreground outline-none focus:border-primary"
                 />
               </label>
-            )}
+              {mode !== "forgot" && (
+                <label className="block">
+                  <span className="text-xs font-medium text-muted-foreground">Şifre</span>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                    className="mt-1 w-full rounded-2xl border border-border bg-background px-4 py-3 text-base text-foreground outline-none focus:border-primary"
+                  />
+                </label>
+              )}
 
-            {error && (
-              <p className="rounded-2xl bg-destructive/10 p-3 text-xs text-destructive">{error}</p>
-            )}
-            {info && (
-              <p className="rounded-2xl bg-accent p-3 text-xs text-foreground">{info}</p>
-            )}
+              {error && (
+                <p className="rounded-2xl bg-destructive/10 p-3 text-xs text-destructive">{error}</p>
+              )}
+              {info && (
+                <p className="rounded-2xl bg-accent p-3 text-xs text-foreground">{info}</p>
+              )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-2xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground disabled:opacity-50"
-            >
-              {loading
-                ? "Bir saniye…"
-                : mode === "signin"
-                  ? "Giriş yap"
-                  : mode === "signup"
-                    ? "Hesap oluştur"
-                    : "Sıfırlama bağlantısı gönder"}
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full rounded-2xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground disabled:opacity-50"
+              >
+                {loading
+                  ? "Bir saniye…"
+                  : mode === "signin"
+                    ? "Giriş yap"
+                    : mode === "signup"
+                      ? "Hesap oluştur"
+                      : "Sıfırlama bağlantısı gönder"}
+              </button>
+            </form>
+          )}
 
-          {mode !== "forgot" && (
+          {mode !== "forgot" && mode !== "verify" && (
             <>
               <div className="my-4 flex items-center gap-3 text-[11px] uppercase tracking-wider text-muted-foreground">
                 <div className="h-px flex-1 bg-border" />
@@ -223,12 +270,67 @@ function isEmailConfirmationError(msg: string): boolean {
 function translateError(msg: string): string {
   const m = msg.toLowerCase();
   if (isEmailConfirmationError(msg)) {
-    return "E-posta onayı bekleniyor. Supabase'de e-posta onayını kapatırsan kayıt sonrası otomatik giriş yapılır.";
+    return "E-posta onayı bekleniyor. Mailindeki DengeOS doğrulama bağlantısına dokun, sonra tekrar giriş yap.";
   }
   if (m.includes("invalid login")) return "E-posta veya şifre hatalı.";
   if (m.includes("already registered") || m.includes("already been registered")) return "Bu e-posta zaten kayıtlı. Giriş yapmayı dene.";
   if (m.includes("password should be")) return "Şifre en az 6 karakter olmalı.";
   if (m.includes("pwned") || m.includes("compromised")) return "Bu şifre çok yaygın — daha güçlü bir şifre seç.";
+  if (m.includes("provider is not enabled") || m.includes("unsupported provider")) {
+    return "Google girişi için Supabase Auth > Providers bölümünde Google sağlayıcısını açmak gerekiyor.";
+  }
   if (m.includes("email")) return "E-posta geçersiz görünüyor.";
   return msg;
+}
+
+function VerifyEmailPanel({
+  email,
+  loading,
+  error,
+  info,
+  onResend,
+  onBack,
+}: {
+  email: string;
+  loading: boolean;
+  error: string | null;
+  info: string | null;
+  onResend: () => void;
+  onBack: () => void;
+}) {
+  return (
+    <div className="text-center">
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-sage-soft text-3xl">
+        ✉️
+      </div>
+      <h2 className="mt-4 text-xl font-semibold tracking-tight text-foreground">Mailini doğrula</h2>
+      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+        <span className="font-medium text-foreground">{email || "E-posta adresine"}</span> için
+        güvenli bir doğrulama bağlantısı gönderdik. Bağlantıya dokunduktan sonra DengeOS seni içeri
+        alacak.
+      </p>
+      <div className="mt-5 rounded-2xl bg-muted p-4 text-left text-xs leading-relaxed text-muted-foreground">
+        Spam/promosyon klasörüne de bak. Link birkaç dakika içinde gelmezse tekrar gönderebilirsin.
+      </div>
+      {error && <p className="mt-4 rounded-2xl bg-destructive/10 p-3 text-xs text-destructive">{error}</p>}
+      {info && <p className="mt-4 rounded-2xl bg-accent p-3 text-xs text-foreground">{info}</p>}
+      <div className="mt-5 space-y-2">
+        <button
+          type="button"
+          onClick={onResend}
+          disabled={loading}
+          className="w-full rounded-2xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground disabled:opacity-50"
+        >
+          {loading ? "Gönderiliyor…" : "Doğrulama mailini tekrar gönder"}
+        </button>
+        <button
+          type="button"
+          onClick={onBack}
+          className="w-full rounded-2xl bg-muted px-4 py-3 text-sm font-medium text-foreground hover:bg-accent"
+        >
+          Giriş ekranına dön
+        </button>
+      </div>
+    </div>
+  );
 }
