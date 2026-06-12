@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 type Mode = "signin" | "signup" | "forgot" | "verify";
 
+const AUTH_TIMEOUT_MS = 18000;
+
 const GoogleIcon = () => (
   <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
     <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.6 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/>
@@ -32,13 +34,15 @@ export function AuthScreen() {
     try {
       if (mode === "signup") {
         const cleanEmail = email.trim().toLowerCase();
-        const { data, error } = await supabase.auth.signUp({
-          email: cleanEmail,
-          password,
-          options: {
-            emailRedirectTo: window.location.origin,
-          },
-        });
+        const { data, error } = await withAuthTimeout(
+          supabase.auth.signUp({
+            email: cleanEmail,
+            password,
+            options: {
+              emailRedirectTo: window.location.origin,
+            },
+          }),
+        );
         if (error) throw error;
 
         if (data.session) {
@@ -53,9 +57,11 @@ export function AuthScreen() {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
       } else if (mode === "forgot") {
-        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-          redirectTo: `${window.location.origin}/sifre-sifirla`,
-        });
+        const { error } = await withAuthTimeout(
+          supabase.auth.resetPasswordForEmail(email.trim(), {
+            redirectTo: `${window.location.origin}/sifre-sifirla`,
+          }),
+        );
         if (error) throw error;
         setInfo("Sıfırlama bağlantısı e-postana gönderildi.");
       }
@@ -95,13 +101,15 @@ export function AuthScreen() {
     }
     setLoading(true);
     try {
-      const { error } = await supabase.auth.resend({
-        type: "signup",
-        email: cleanEmail,
-        options: {
-          emailRedirectTo: window.location.origin,
-        },
-      });
+      const { error } = await withAuthTimeout(
+        supabase.auth.resend({
+          type: "signup",
+          email: cleanEmail,
+          options: {
+            emailRedirectTo: window.location.origin,
+          },
+        }),
+      );
       if (error) throw error;
       setInfo("Doğrulama bağlantısını tekrar gönderdik.");
     } catch (err) {
@@ -260,6 +268,29 @@ export function AuthScreen() {
       </div>
     </div>
   );
+}
+
+function withAuthTimeout<T>(promise: Promise<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      reject(
+        new Error(
+          "Mail servisi yanıt vermedi. Supabase SMTP ayarlarında Resend host, port, API key ve sender email'i kontrol et.",
+        ),
+      );
+    }, AUTH_TIMEOUT_MS);
+
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
 }
 
 function isEmailConfirmationError(msg: string): boolean {
