@@ -23,7 +23,7 @@ Supabase CLI ile proje bağlama:
 
 ```bash
 npx supabase login
-npx supabase link --project-ref yfkomapfqesorzrakvjt
+npx supabase link --project-ref dtmisljjfrsfgbebwmtq
 npx supabase db push
 ```
 
@@ -71,7 +71,7 @@ Vercel → Project Settings → Environment Variables:
 | --- | --- | --- |
 | `VITE_SUPABASE_URL` | Production + Preview | Supabase project URL |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Production + Preview | Supabase publishable/anon key |
-| `VITE_SUPABASE_PROJECT_ID` | Production + Preview | `yfkomapfqesorzrakvjt` |
+| `VITE_SUPABASE_PROJECT_ID` | Production + Preview | `dtmisljjfrsfgbebwmtq` |
 | `SUPABASE_URL` | Production + Preview | Supabase project URL |
 | `SUPABASE_PUBLISHABLE_KEY` | Production + Preview | Supabase publishable/anon key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Production + Preview | Sadece server-side; tarayıcıya girmez |
