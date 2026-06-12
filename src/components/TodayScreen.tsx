@@ -282,6 +282,7 @@ export function TodayScreen() {
                   <div className="flex flex-col items-end gap-2">
                     <button
                       onClick={() => toggleComplete(h.id)}
+                      data-sound={done ? "tap" : "success"}
                       aria-label="Tamamla"
                       className={`flex h-12 w-12 items-center justify-center rounded-full border-2 transition ${
                         done

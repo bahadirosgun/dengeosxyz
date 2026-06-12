@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 import { AuthGate } from "@/components/AuthGate";
+import { SoundEffects } from "@/components/SoundEffects";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -146,6 +147,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <SoundEffects />
       <AuthGate>
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
