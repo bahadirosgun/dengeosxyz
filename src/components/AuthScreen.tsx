@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
+import { createConfirmedUser } from "@/lib/api/auth.functions";
 
 type Mode = "signin" | "signup" | "forgot";
 
@@ -32,18 +33,23 @@ export function AuthScreen() {
     setLoading(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email,
+        const cleanEmail = email.trim().toLowerCase();
+        await createConfirmedUser({ data: { email: cleanEmail, password } });
+        const login = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
           password,
-          options: { emailRedirectTo: window.location.origin },
         });
-        if (error) throw error;
-        setInfo("Hesabın oluşturuldu — sana hoş geldin 🌿");
+        if (!login.error) {
+          setInfo("Hesabın oluşturuldu — içeri alıyorum.");
+          return;
+        }
+
+        throw login.error;
       } else if (mode === "signin") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
       } else if (mode === "forgot") {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
           redirectTo: `${window.location.origin}/sifre-sifirla`,
         });
         if (error) throw error;
@@ -209,8 +215,16 @@ export function AuthScreen() {
   );
 }
 
+function isEmailConfirmationError(msg: string): boolean {
+  const m = msg.toLowerCase();
+  return m.includes("email not confirmed") || m.includes("not confirmed") || m.includes("confirm your email");
+}
+
 function translateError(msg: string): string {
   const m = msg.toLowerCase();
+  if (isEmailConfirmationError(msg)) {
+    return "E-posta onayı bekleniyor. Supabase'de e-posta onayını kapatırsan kayıt sonrası otomatik giriş yapılır.";
+  }
   if (m.includes("invalid login")) return "E-posta veya şifre hatalı.";
   if (m.includes("already registered") || m.includes("already been registered")) return "Bu e-posta zaten kayıtlı. Giriş yapmayı dene.";
   if (m.includes("password should be")) return "Şifre en az 6 karakter olmalı.";
