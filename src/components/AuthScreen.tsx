@@ -300,6 +300,16 @@ function isEmailConfirmationError(msg: string): boolean {
 
 function translateError(msg: string): string {
   const m = msg.toLowerCase();
+  if (
+    m.includes("mail servisi") ||
+    m.includes("smtp") ||
+    m.includes("sender email") ||
+    m.includes("error sending confirmation") ||
+    m.includes("confirmation email") ||
+    m.includes("resend")
+  ) {
+    return "Doğrulama maili gönderilemedi. Supabase SMTP ayarlarında Resend API key, sender email ve no-reply@dengeos.xyz domain doğrulamasını kontrol et.";
+  }
   if (isEmailConfirmationError(msg)) {
     return "E-posta onayı bekleniyor. Mailindeki DengeOS doğrulama bağlantısına dokun, sonra tekrar giriş yap.";
   }
@@ -307,10 +317,12 @@ function translateError(msg: string): string {
   if (m.includes("already registered") || m.includes("already been registered")) return "Bu e-posta zaten kayıtlı. Giriş yapmayı dene.";
   if (m.includes("password should be")) return "Şifre en az 6 karakter olmalı.";
   if (m.includes("pwned") || m.includes("compromised")) return "Bu şifre çok yaygın — daha güçlü bir şifre seç.";
+  if (m.includes("invalid email") || m.includes("email address is invalid")) {
+    return "E-posta geçersiz görünüyor.";
+  }
   if (m.includes("provider is not enabled") || m.includes("unsupported provider")) {
     return "Google girişi için Supabase Auth > Providers bölümünde Google sağlayıcısını açmak gerekiyor.";
   }
-  if (m.includes("email")) return "E-posta geçersiz görünüyor.";
   return msg;
 }
 
