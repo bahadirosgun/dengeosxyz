@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Activity,
@@ -324,29 +324,98 @@ const philosophyCards: PhilosophyCard[] = [
 ];
 
 function PhilosophyDeck() {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const railRef = useRef<HTMLDivElement>(null);
+
+  const scrollToCard = (index: number) => {
+    const next = Math.max(0, Math.min(philosophyCards.length - 1, index));
+    const rail = railRef.current;
+    const card = rail?.querySelector<HTMLElement>(`[data-card-index="${next}"]`);
+    if (!rail || !card) return;
+    setActiveIndex(next);
+    rail.scrollTo({
+      left: card.offsetLeft - 20,
+      behavior: "smooth",
+    });
+  };
+
+  const updateActiveFromScroll = () => {
+    const rail = railRef.current;
+    if (!rail) return;
+    const cards = Array.from(rail.querySelectorAll<HTMLElement>("[data-card-index]"));
+    const railLeft = rail.scrollLeft + 20;
+    let closest = 0;
+    let closestDistance = Number.POSITIVE_INFINITY;
+    for (const card of cards) {
+      const index = Number(card.dataset.cardIndex ?? 0);
+      const distance = Math.abs(card.offsetLeft - railLeft);
+      if (distance < closestDistance) {
+        closest = index;
+        closestDistance = distance;
+      }
+    }
+    setActiveIndex(closest);
+  };
+
   return (
     <section className="mb-4">
-      <div className="mb-3 px-1">
-        <p className="flex items-center gap-1.5 text-xs font-medium text-primary">
-          <Leaf size={13} /> Felsefe kartları
-        </p>
-        <h2 className="mt-1 text-xl font-semibold tracking-[-0.04em] text-foreground">
-          Bugünün duygusunu seç
-        </h2>
-        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-          Japon ve Çin düşüncesinden ilham alan küçük rehberler; bilgi değil, uygulanabilir ritim.
-        </p>
+      <div className="mb-3 flex items-end justify-between gap-3 px-1">
+        <div>
+          <p className="flex items-center gap-1.5 text-xs font-medium text-primary">
+            <Leaf size={13} /> Felsefe kartları
+          </p>
+          <h2 className="mt-1 text-xl font-semibold tracking-[-0.04em] text-foreground">
+            Bugünün duygusunu seç
+          </h2>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Japon ve Çin düşüncesinden ilham alan küçük rehberler; bilgi değil, uygulanabilir ritim.
+          </p>
+        </div>
+        <div className="flex shrink-0 gap-1">
+          <button
+            onClick={() => scrollToCard(activeIndex - 1)}
+            disabled={activeIndex === 0}
+            aria-label="Önceki felsefe kartı"
+            className="grid h-9 w-9 place-items-center rounded-full bg-card text-muted-foreground ring-1 ring-border transition hover:text-foreground disabled:opacity-35"
+          >
+            <ChevronRight size={17} className="rotate-180" />
+          </button>
+          <button
+            onClick={() => scrollToCard(activeIndex + 1)}
+            disabled={activeIndex === philosophyCards.length - 1}
+            aria-label="Sonraki felsefe kartı"
+            className="grid h-9 w-9 place-items-center rounded-full bg-card text-muted-foreground ring-1 ring-border transition hover:text-foreground disabled:opacity-35"
+          >
+            <ChevronRight size={17} />
+          </button>
+        </div>
       </div>
-      <div className="-mx-5 flex snap-x gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {philosophyCards.map((card) => (
-          <PhilosophyPoster key={card.id} card={card} />
+      <div
+        ref={railRef}
+        onScroll={updateActiveFromScroll}
+        className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {philosophyCards.map((card, index) => (
+          <PhilosophyPoster key={card.id} card={card} index={index} />
+        ))}
+      </div>
+      <div className="mt-2 flex items-center justify-center gap-1.5">
+        {philosophyCards.map((card, index) => (
+          <button
+            key={card.id}
+            onClick={() => scrollToCard(index)}
+            aria-label={`${card.title} kartına git`}
+            className={`h-2 rounded-full transition-all ${
+              activeIndex === index ? "w-6 bg-primary" : "w-2 bg-border"
+            }`}
+          />
         ))}
       </div>
     </section>
   );
 }
 
-function PhilosophyPoster({ card }: { card: PhilosophyCard }) {
+function PhilosophyPoster({ card, index }: { card: PhilosophyCard; index: number }) {
   const palette = philosophyPalette[card.palette];
   const [applied, setApplied] = useState(false);
 
@@ -378,6 +447,7 @@ function PhilosophyPoster({ card }: { card: PhilosophyCard }) {
 
   return (
     <article
+      data-card-index={index}
       className={`w-[286px] shrink-0 snap-start overflow-hidden rounded-[32px] ${palette.bg} shadow-[0_18px_48px_rgba(46,74,56,0.12)] ring-1 ring-border`}
     >
       <div className="relative min-h-[360px] p-4">
