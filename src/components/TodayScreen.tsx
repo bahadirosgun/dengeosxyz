@@ -1,6 +1,15 @@
 import { type CSSProperties, useEffect, useState } from "react";
-import { Flame, Check, Snowflake, Heart, Zap, Settings as SettingsIcon } from "lucide-react";
+import {
+  Flame,
+  Check,
+  Snowflake,
+  Heart,
+  Zap,
+  Settings as SettingsIcon,
+  Gift,
+} from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { toast } from "sonner";
 import {
   type AppState,
   type HabitCategory,
@@ -16,14 +25,88 @@ import {
   FREEZES_PER_WEEK,
 } from "@/lib/habits";
 import { PHASE_META, computeCycle, loadCycle, type CycleSettings } from "@/lib/cycle";
+import { habitCategoryLabel } from "@/lib/categoryLabels";
 import { Onboarding } from "./Onboarding";
 import { startReminderLoop } from "@/lib/reminder";
 import { useGender } from "@/lib/useAppData";
 import { getCache } from "@/lib/appData";
 import { DashboardWidgets } from "./DashboardWidgets";
 import { QuickAddFab } from "./QuickAddFab";
+import { WeatherCard } from "./WeatherCard";
+import { getTodayPhilosophyRituals } from "@/lib/philosophyRituals";
 
 const moodEmojis = ["😞", "😕", "😐", "🙂", "😊"];
+const stressNotes = [
+  "Bedenin sakin alanda.",
+  "Hafif bir hareket iyi gelebilir.",
+  "Kısa bir nefes molası dengeleyebilir.",
+  "Bugün kendine alan açmak değerli.",
+  "Yük yoğun olabilir; küçük adım yeter.",
+];
+
+type PromisePlan = {
+  id: string;
+  title: string;
+  days: number;
+  action: string;
+  tone: "meal" | "calm" | "move" | "care";
+  gender?: "female" | "male";
+  rewards: string[];
+};
+
+type ActivePromisePlan = {
+  planId: string;
+  reward: string;
+  completedDates: string[];
+  startedAt: string;
+};
+
+const promisePlans: PromisePlan[] = [
+  {
+    id: "calm-evening",
+    title: "Sakin Akşam Ritmi",
+    days: 5,
+    action: "Akşam 5 dk nefes + bir cümle günce",
+    tone: "calm",
+    rewards: ["Rahat banyo + müzik", "30 dk ekransız çay molası", "Sevdiğin diziden 1 bölüm"],
+  },
+  {
+    id: "balanced-plate",
+    title: "Denge Tabağı Ritmi",
+    days: 7,
+    action: "Günde bir öğünde protein ve renk ekle",
+    tone: "meal",
+    rewards: ["Kendine özel kahvaltı", "Dışarıda dengeli bir öğün", "Güzel bir smoothie molası"],
+  },
+  {
+    id: "gentle-walk",
+    title: "Açık Hava Ritmi",
+    days: 5,
+    action: "Gün içinde kısa yürüyüş veya esneme",
+    tone: "move",
+    rewards: ["Sahil/park yürüyüşü + kahve", "Kitapçı gezisi", "Mini doğa kaçamağı"],
+  },
+  {
+    id: "luteal-care",
+    title: "Şefkatli Günler Ritmi",
+    days: 4,
+    action: "Su, hafif hareket ve kendine yüklenmeme",
+    tone: "care",
+    gender: "female",
+    rewards: ["Cilt bakım akşamı", "Rahatlatıcı müzik + mum", "Sevdiğin sağlıklı tatlı"],
+  },
+  {
+    id: "focus-reset",
+    title: "Odak ve Toparlanma Ritmi",
+    days: 4,
+    action: "Su, kısa yürüyüş ve 3 dk nefes",
+    tone: "move",
+    gender: "male",
+    rewards: ["Uzun kahve molası", "Sevdiğin aktiviteye 45 dk", "Dışarıda sakin bir öğün"],
+  },
+];
+
+const promiseStorageKey = "dengeos.promisePlan.v1";
 
 const categoryStyles: Record<HabitCategory, string> = {
   Kilo: "bg-[var(--tone-soft)] text-foreground",
@@ -78,10 +161,26 @@ const formatDate = (d: Date) =>
     month: "long",
   });
 
+const getBirthdayMessage = () => {
+  if (typeof window === "undefined") return null;
+  const birthDate = getCache().personal.birthDate;
+  if (!birthDate) return null;
+  const [, month, day] = birthDate.split("-");
+  const now = new Date();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  if (month !== mm || day !== dd) return null;
+  const key = `dengeos.birthday.${now.getFullYear()}`;
+  if (window.localStorage.getItem(key)) return null;
+  window.localStorage.setItem(key, "seen");
+  return "İyi ki doğdun. Bu yıl bedenine, zihnine ve ritmine daha nazik davranman dileğiyle.";
+};
+
 export function TodayScreen() {
   const [state, setState] = useState<AppState | null>(null);
   const [celebratingId, setCelebratingId] = useState<string | null>(null);
   const [pauseMessage, setPauseMessage] = useState<string | null>(null);
+  const [birthdayMessage, setBirthdayMessage] = useState<string | null>(null);
   const [cycle, setCycle] = useState<CycleSettings | null>(null);
   const [onboarding, setOnboarding] = useState(false);
   const gender = useGender();
@@ -93,6 +192,11 @@ export function TodayScreen() {
     setCycle(loadCycle());
     const needsOnboarding = !isOnboarded() || !getCache().onboardingComplete;
     if (needsOnboarding) setOnboarding(true);
+    const birthday = getBirthdayMessage();
+    if (birthday) {
+      setBirthdayMessage(birthday);
+      toast.success(birthday);
+    }
     const stop = startReminderLoop();
     return stop;
   }, []);
@@ -121,6 +225,7 @@ export function TodayScreen() {
 
   const today = todayKey();
   const todayLog = state.logs[today]!;
+  const todayRituals = getTodayPhilosophyRituals();
   const remainingFreezes = freezesRemaining(state);
 
   const completedCount = todayLog.completed.length;
@@ -157,6 +262,17 @@ export function TodayScreen() {
     };
     update(next);
     setCelebratingId(habitId);
+    const habit = state.habits.find((h) => h.id === habitId);
+    const nextStreak = computeStreak(next, habitId);
+    if (habit) {
+      toast.success(`${habit.name} tamamlandı. Bugün kendine verdiğin sözü tuttun.`);
+    }
+    if (nextStreak > 0 && [3, 7, 14, 21, 30, 66].includes(nextStreak)) {
+      toast.success(`${nextStreak} günlük ritim oldu. Bu emek gerçekten görünür.`);
+    }
+    if (next.logs[today]!.completed.length === next.habits.length && next.habits.length > 0) {
+      toast.success("Bugünün ritmi tamam. Kendine küçük bir ödül seçebilirsin.");
+    }
     setTimeout(() => setCelebratingId(null), 800);
   };
 
@@ -183,7 +299,7 @@ export function TodayScreen() {
     const used = state.weekFreezeUsage[wk] ?? 0;
     if (used >= FREEZES_PER_WEEK) {
       setPauseMessage(
-        "Duraklatıldı, yarın kaldığın yerden devam et. Bu hafta jokerlerin doldu — hiç sorun değil. 🌱",
+        "Duraklatıldı, yarın kaldığın yerden devam et. Bu hafta jokerlerin doldu, hiç sorun değil.",
       );
       setTimeout(() => setPauseMessage(null), 4500);
       return;
@@ -296,6 +412,26 @@ export function TodayScreen() {
         </div>
       </section>
 
+      <WeatherCard />
+
+      {todayRituals[0] && (
+        <section className="mt-4 rounded-[28px] bg-sage-soft p-4 text-foreground shadow-[0_14px_36px_rgba(46,74,56,0.08)] ring-1 ring-border">
+          <p className="text-sm font-semibold">Bugün {todayRituals[0].title} günü.</p>
+          <p className="mt-1 text-xs leading-relaxed text-foreground/75">
+            Seçtiğin felsefe kartı bugünün alışkanlıklarına ve günlük notuna dönüştü.
+          </p>
+        </section>
+      )}
+
+      {birthdayMessage && (
+        <section className="mt-4 rounded-[28px] bg-[var(--tone-soft)] p-4 text-foreground shadow-[0_14px_36px_rgba(46,74,56,0.08)] ring-1 ring-border">
+          <p className="text-sm font-semibold">Bugün sana ayrılmış bir gün.</p>
+          <p className="mt-1 text-xs leading-relaxed text-foreground/75">
+            {birthdayMessage} Bugün hedef değil, kendine şefkat de takipte.
+          </p>
+        </section>
+      )}
+
       {/* Cycle card — only for users tracking a cycle */}
       {gender === "female" && <CycleCard settings={cycle} />}
 
@@ -332,7 +468,7 @@ export function TodayScreen() {
                       <span
                         className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${categoryStyles[h.category]}`}
                       >
-                        {h.category}
+                        {habitCategoryLabel(h.category)}
                       </span>
                       {frozen && !done && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-sky-soft px-2.5 py-0.5 text-[11px] font-medium text-foreground">
@@ -429,28 +565,48 @@ export function TodayScreen() {
       </section>
 
       {/* Stress */}
-      <section className="mt-4 rounded-3xl bg-card p-5 ring-1 ring-border">
-        <h2 className="text-base font-semibold text-foreground">Stres seviyen</h2>
-        <p className="mt-1 text-xs text-muted-foreground">1 = çok sakin · 5 = çok yoğun</p>
-        <div className="mt-3 flex items-center gap-2">
+      <section className="mt-4 rounded-[30px] bg-white/80 p-5 shadow-[0_14px_36px_rgba(46,74,56,0.07)] ring-1 ring-border">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">Beden sinyalin</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Stresini sayı gibi değil, bugünün yoğunluğu gibi düşün.
+            </p>
+          </div>
+          <span className="rounded-full bg-[var(--tone-soft)] px-3 py-1 text-xs font-semibold text-foreground">
+            {todayLog.stress ? `${todayLog.stress}/5` : "seç"}
+          </span>
+        </div>
+        <div className="mt-4 grid grid-cols-5 gap-2">
           {[1, 2, 3, 4, 5].map((v) => {
             const selected = todayLog.stress === v;
+            const filled = (todayLog.stress ?? 0) >= v;
             return (
               <button
                 key={v}
                 onClick={() => setStress(v)}
-                className={`h-11 flex-1 rounded-2xl text-sm font-medium transition ${
-                  selected
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground hover:bg-sky-soft"
+                aria-label={`Stres seviyesi ${v}`}
+                className={`group flex h-14 items-center justify-center rounded-[22px] transition ${
+                  selected ? "bg-[var(--tone-soft)]" : "bg-muted/70 hover:bg-sage-soft"
                 }`}
               >
-                {v}
+                <span
+                  className={`block rounded-full transition-all ${
+                    filled
+                      ? "bg-[var(--tone)] shadow-[0_10px_24px_rgba(46,74,56,0.14)]"
+                      : "bg-background ring-1 ring-border"
+                  } ${selected ? "h-8 w-8" : v >= 4 ? "h-7 w-7" : "h-6 w-6"}`}
+                />
               </button>
             );
           })}
         </div>
+        <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
+          {todayLog.stress ? stressNotes[todayLog.stress - 1] : "Bir daire seç, DengeOS bugünün ritmini ona göre yumuşatsın."}
+        </p>
       </section>
+
+      <PromisePlanCard gender={gender} />
 
       {/* Customizable home widgets */}
       <DashboardWidgets />
@@ -513,6 +669,197 @@ function HabitVisual({
   );
 }
 
+function PromisePlanCard({ gender }: { gender: "female" | "male" }) {
+  const [active, setActive] = useState<ActivePromisePlan | null>(null);
+  const [rewardDraft, setRewardDraft] = useState("");
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(promiseStorageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as ActivePromisePlan;
+        setActive(parsed);
+        setRewardDraft(parsed.reward);
+      }
+    } catch {
+      localStorage.removeItem(promiseStorageKey);
+    }
+  }, []);
+
+  const saveActive = (next: ActivePromisePlan | null) => {
+    setActive(next);
+    if (next) {
+      localStorage.setItem(promiseStorageKey, JSON.stringify(next));
+      setRewardDraft(next.reward);
+    } else {
+      localStorage.removeItem(promiseStorageKey);
+      setRewardDraft("");
+    }
+  };
+
+  const availablePlans = promisePlans.filter((plan) => !plan.gender || plan.gender === gender);
+  const activePlan = active ? promisePlans.find((plan) => plan.id === active.planId) : null;
+  const today = todayKey();
+
+  if (!active || !activePlan) {
+    return (
+      <section className="mt-8 rounded-[32px] bg-white/80 p-5 shadow-[0_18px_44px_rgba(46,74,56,0.09)] ring-1 ring-border">
+        <div className="flex items-start gap-3">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[18px] bg-[var(--tone-soft)] text-[var(--tone-deep)]">
+            <Gift size={20} />
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold tracking-[-0.04em] text-foreground">
+              Kendine Söz
+            </h2>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              Küçük bir ritim seç. Bitince ödül puan değil, kendine ayırdığın iyi bir şey olsun.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3">
+          {availablePlans.slice(0, 3).map((plan) => (
+            <button
+              key={plan.id}
+              onClick={() =>
+                saveActive({
+                  planId: plan.id,
+                  reward: plan.rewards[0],
+                  completedDates: [],
+                  startedAt: today,
+                })
+              }
+              className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-[24px] bg-sage-soft p-4 text-left ring-1 ring-border transition active:scale-[0.99]"
+            >
+              <span>
+                <span className="block text-sm font-semibold text-foreground">{plan.title}</span>
+                <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                  {plan.days} gün · {plan.action}
+                </span>
+                <span className="mt-2 block text-[11px] font-medium text-[var(--tone-deep)]">
+                  Ödül: {plan.rewards[0]}
+                </span>
+              </span>
+              <span className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-foreground shadow-sm">
+                Başlat
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  const completedCount = Math.min(active.completedDates.length, activePlan.days);
+  const isDoneToday = active.completedDates.includes(today);
+  const isFinished = completedCount >= activePlan.days;
+  const dots = Array.from({ length: activePlan.days }, (_, index) => index < completedCount);
+
+  const markToday = () => {
+    if (isDoneToday || isFinished) return;
+    saveActive({
+      ...active,
+      completedDates: [...active.completedDates, today],
+    });
+  };
+
+  const updateReward = (reward: string) => {
+    saveActive({ ...active, reward });
+  };
+
+  return (
+    <section className="mt-8 overflow-hidden rounded-[32px] bg-[var(--primary-dark)] p-5 text-white shadow-[0_24px_60px_rgba(46,74,56,0.2)]">
+      <div className="grid grid-cols-[1fr_auto] gap-4">
+        <div>
+          <p className="text-xs font-semibold text-white/65">Kendine Söz</p>
+          <h2 className="mt-1 text-xl font-semibold tracking-[-0.04em]">{activePlan.title}</h2>
+          <p className="mt-1 text-xs leading-relaxed text-white/70">{activePlan.action}</p>
+        </div>
+        <div className="grid h-16 w-16 place-items-center rounded-full bg-white/12">
+          <span className="text-lg font-semibold">
+            {completedCount}/{activePlan.days}
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-5 grid grid-cols-[repeat(var(--plan-days),minmax(0,1fr))] gap-2" style={{ "--plan-days": activePlan.days } as CSSProperties}>
+        {dots.map((done, index) => (
+          <span
+            key={index}
+            className={`h-3 rounded-full transition ${
+              done ? "bg-[var(--tone-soft)]" : "bg-white/16"
+            }`}
+          />
+        ))}
+      </div>
+
+      <div className="mt-5 rounded-[24px] bg-white/10 p-4 ring-1 ring-white/10">
+        <p className="text-xs font-semibold text-white/65">İyi gelen ödülün</p>
+        <p className="mt-1 text-sm font-semibold">{active.reward}</p>
+        {!isFinished && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {activePlan.rewards.map((reward) => (
+              <button
+                key={reward}
+                onClick={() => updateReward(reward)}
+                className={`rounded-full px-3 py-1.5 text-[11px] font-semibold transition ${
+                  active.reward === reward
+                    ? "bg-[var(--tone-soft)] text-foreground"
+                    : "bg-white/10 text-white/80"
+                }`}
+              >
+                {reward}
+              </button>
+            ))}
+          </div>
+        )}
+        {!isFinished && (
+          <label className="mt-3 block">
+            <span className="text-[11px] text-white/60">Kendi ödülünü yaz</span>
+            <div className="mt-1 flex gap-2">
+              <input
+                value={rewardDraft}
+                onChange={(e) => setRewardDraft(e.target.value)}
+                placeholder="Örn: arkadaşla kahve"
+                className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/10 px-3 py-2 text-sm text-white outline-none placeholder:text-white/40 focus:border-white/30"
+              />
+              <button
+                onClick={() => rewardDraft.trim() && updateReward(rewardDraft.trim())}
+                className="rounded-2xl bg-white px-3 py-2 text-xs font-semibold text-foreground"
+              >
+                Seç
+              </button>
+            </div>
+          </label>
+        )}
+      </div>
+
+      <div className="mt-4 flex gap-2">
+        <button
+          onClick={markToday}
+          disabled={isDoneToday || isFinished}
+          data-sound={isDoneToday || isFinished ? "tap" : "success"}
+          className="flex-1 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-foreground disabled:opacity-55"
+        >
+          {isFinished ? "Sözünü tuttun" : isDoneToday ? "Bugün tamam" : "Bugünü işaretle"}
+        </button>
+        <button
+          onClick={() => saveActive(null)}
+          className="rounded-2xl bg-white/10 px-4 py-3 text-xs font-semibold text-white/75"
+        >
+          Değiştir
+        </button>
+      </div>
+      {isFinished && (
+        <p className="mt-3 rounded-2xl bg-[var(--tone-soft)] px-4 py-3 text-xs font-semibold leading-relaxed text-foreground">
+          Başardın. Şimdi kendine verdiğin sözü tutma zamanı: {active.reward}
+        </p>
+      )}
+    </section>
+  );
+}
+
 function CycleCard({ settings }: { settings: CycleSettings | null }) {
   if (!settings) {
     return (
@@ -523,7 +870,7 @@ function CycleCard({ settings }: { settings: CycleSettings | null }) {
         <div>
           <p className="text-sm font-medium text-foreground">🌙 Döngünü takip et</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Fazına göre nazik ipuçları al — istersen sonra da ekleyebilirsin.
+            Fazına göre nazik ipuçları al, istersen sonra da ekleyebilirsin.
           </p>
         </div>
         <span className="text-xs font-medium text-primary">Başla →</span>
@@ -537,7 +884,7 @@ function CycleCard({ settings }: { settings: CycleSettings | null }) {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-foreground/70">
-            {meta.emoji} {meta.label}
+            {meta.label}
           </p>
           <p className="mt-0.5 text-base font-semibold text-foreground">
             Döngünün {info.dayOfCycle}. günü

@@ -12,6 +12,10 @@ import {
   saveState,
   updateHabit,
 } from "@/lib/habits";
+import {
+  habitCategoryDescriptions,
+  habitCategoryLabel,
+} from "@/lib/categoryLabels";
 
 const categories: HabitCategory[] = ["Kilo", "Stres", "Genel"];
 
@@ -97,7 +101,10 @@ export function HabitsScreen() {
             <div key={cat} className="mt-4">
               <div className="mb-2 flex items-center gap-2">
                 <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${categoryStyles[cat]}`}>
-                  {cat}
+                  {habitCategoryLabel(cat)}
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  {habitCategoryDescriptions[cat]}
                 </span>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -131,13 +138,13 @@ export function HabitsScreen() {
           <section key={g.category}>
             <h2 className="mb-2 flex items-center gap-2 px-1">
               <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${categoryStyles[g.category]}`}>
-                {g.category}
+                {habitCategoryLabel(g.category)}
               </span>
               <span className="text-xs text-muted-foreground">{g.items.length} alışkanlık</span>
             </h2>
             {g.items.length === 0 ? (
               <p className="rounded-2xl bg-card p-4 text-sm text-muted-foreground ring-1 ring-border">
-                Henüz {g.category.toLowerCase()} kategorisinde alışkanlık yok.
+                Henüz {habitCategoryLabel(g.category).toLowerCase()} alanında alışkanlık yok.
               </p>
             ) : (
               <div className="space-y-2">
@@ -260,7 +267,7 @@ function HabitEditor({
                     : "bg-background text-muted-foreground ring-border hover:bg-muted"
                 }`}
               >
-                {c}
+                {habitCategoryLabel(c)}
               </button>
             ))}
           </div>
@@ -269,7 +276,7 @@ function HabitEditor({
         <label className="mt-4 block">
           <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
             <Zap size={11} className="text-primary" />
-            Tetikleyici (eğer/o zaman) — isteğe bağlı
+            Tetikleyici (eğer/o zaman), isteğe bağlı
           </span>
           <input
             value={trigger}

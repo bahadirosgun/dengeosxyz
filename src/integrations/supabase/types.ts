@@ -200,11 +200,14 @@ export type Database = {
       profiles: {
         Row: {
           active_minutes_goal: number
+          birth_date: string | null
           created_at: string
           dashboard_widgets: Json
           display_name: string | null
           gender: Database["public"]["Enums"]["user_gender"]
+          height_cm: number | null
           id: string
+          initial_weight_kg: number | null
           onboarded: boolean
           onboarding_complete: boolean
           reminder_enabled: boolean
@@ -216,11 +219,14 @@ export type Database = {
         }
         Insert: {
           active_minutes_goal?: number
+          birth_date?: string | null
           created_at?: string
           dashboard_widgets?: Json
           display_name?: string | null
           gender?: Database["public"]["Enums"]["user_gender"]
+          height_cm?: number | null
           id: string
+          initial_weight_kg?: number | null
           onboarded?: boolean
           onboarding_complete?: boolean
           reminder_enabled?: boolean
@@ -232,11 +238,14 @@ export type Database = {
         }
         Update: {
           active_minutes_goal?: number
+          birth_date?: string | null
           created_at?: string
           dashboard_widgets?: Json
           display_name?: string | null
           gender?: Database["public"]["Enums"]["user_gender"]
+          height_cm?: number | null
           id?: string
+          initial_weight_kg?: number | null
           onboarded?: boolean
           onboarding_complete?: boolean
           reminder_enabled?: boolean

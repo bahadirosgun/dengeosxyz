@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Flame, Trophy, Snowflake, Check, X, Settings as SettingsIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, Flame, Trophy, Snowflake, Check, X, Settings as SettingsIcon, Leaf } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import {
   type AppState,
@@ -11,6 +11,7 @@ import {
   todayKey,
 } from "@/lib/habits";
 import { type CycleSettings, computeCycle, loadCycle } from "@/lib/cycle";
+import { getPhilosophyRitualsForDay, loadPhilosophyRituals } from "@/lib/philosophyRituals";
 import { useGender } from "@/lib/useAppData";
 
 const monthNames = [
@@ -64,6 +65,7 @@ export function CalendarScreen() {
     cycle && gender === "female"
       ? cycleMarksForMonth(cycle, view.year, view.month)
       : {};
+  const ritualMap = loadPhilosophyRituals();
 
   const tk = todayKey();
 
@@ -162,6 +164,7 @@ export function CalendarScreen() {
             const isToday = key === tk;
             const isSelected = key === selectedDay;
             const cycleMark = cycleMap[key];
+            const hasRitual = (ritualMap[key]?.length ?? 0) > 0;
             return (
               <button
                 key={i}
@@ -184,6 +187,14 @@ export function CalendarScreen() {
                 <span>{cell.getDate()}</span>
                 {status === "frozen" && (
                   <span className="absolute bottom-1 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-sky" />
+                )}
+                {hasRitual && (
+                  <span
+                    className="absolute bottom-1 right-1 grid h-3.5 w-3.5 place-items-center rounded-full bg-sage-soft text-primary ring-1 ring-white/80"
+                    title="Ritim günü"
+                  >
+                    <Leaf size={9} />
+                  </span>
                 )}
                 {cycleMark && (
                   <span
@@ -214,6 +225,12 @@ export function CalendarScreen() {
               <span className="absolute bottom-0 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-sky" />
             </span>
             Joker
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="grid h-3 w-3 place-items-center rounded-full bg-sage-soft text-primary">
+              <Leaf size={8} />
+            </span>
+            Ritim kartı
           </span>
           {cycle && gender === "female" && (
             <>
@@ -305,6 +322,7 @@ function DayDetail({
   onClose: () => void;
 }) {
   const log = state.logs[dayKey];
+  const rituals = getPhilosophyRitualsForDay(dayKey);
   const date = new Date(dayKey + "T00:00:00");
   const label = date.toLocaleDateString("tr-TR", {
     weekday: "long",
@@ -343,6 +361,19 @@ function DayDetail({
           <X size={16} />
         </button>
       </div>
+
+      {rituals.length > 0 && (
+        <div className="mb-3 rounded-2xl bg-sage-soft p-3 ring-1 ring-border">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            <Leaf size={14} className="text-primary" />
+            {rituals.map((r) => r.title).join(" + ")} günü
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-foreground/70">
+            Bu gün bir felsefe kartı ritme çevrildi. Alışkanlıklar ve günlük notu o kartın
+            hikayesinden beslendi.
+          </p>
+        </div>
+      )}
 
       <ul className="space-y-2">
         {rows.map(({ h, completed, frozen, beforeStart }) => (

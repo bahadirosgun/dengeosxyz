@@ -10,8 +10,8 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/araclar/tarti")({
   head: () => ({
     meta: [
-      { title: "Tartı — DengeOS" },
-      { name: "description", content: "Kilonu nazikçe izle: trend grafiği, dalgalanmalara takılmadan." },
+      { title: "Ölçüm — DengeOS" },
+      { name: "description", content: "Beden ölçümünü nazikçe izle: trend grafiği, dalgalanmalara takılmadan." },
     ],
   }),
   component: WeightPage,
@@ -133,8 +133,8 @@ function WeightPage() {
             <ChevronLeft size={18} />
           </Link>
           <div className="min-w-0 flex-1">
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Tartı</h1>
-            <p className="text-xs text-muted-foreground">Bir skor değil, bir eğilim. Nazik kal.</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Ölçüm</h1>
+            <p className="text-xs text-muted-foreground">Tek sayı değil, bedeninin zaman içindeki sinyali.</p>
           </div>
           <button
             onClick={() => setEditingGoal(true)}
@@ -187,7 +187,7 @@ function WeightPage() {
           )}
           {lutealHint && latest && (
             <p className="mt-3 rounded-2xl bg-accent/40 px-3 py-2 text-[11px] text-foreground/80">
-              🌘 Luteal fazdasın — su tutmaya bağlı 1-2 kg dalgalanma çok normal. Tartı eğilimi önemli, tek bir gün değil.
+              Luteal fazdasın; su tutmaya bağlı 1-2 kg dalgalanma çok normal. Ölçüm eğilimi önemli, tek bir gün değil.
             </p>
           )}
         </div>
@@ -332,7 +332,7 @@ function WeightEditor({ onClose, onSaved }: { onClose: () => void; onSaved: () =
     }
     const w = parseFloat(weight.replace(",", "."));
     if (!w || w <= 0 || w >= 500) {
-      toast.error("Geçerli bir kilo gir.");
+      toast.error("Geçerli bir ölçüm değeri gir.");
       return;
     }
     setSaving(true);
@@ -354,14 +354,14 @@ function WeightEditor({ onClose, onSaved }: { onClose: () => void; onSaved: () =
           <h2 className="text-lg font-semibold text-foreground">Ölçüm ekle</h2>
           <button onClick={onClose} className="rounded-full p-1 text-muted-foreground"><X size={18} /></button>
         </div>
-        <p className="mb-3 text-xs text-muted-foreground">İdeal olarak sabah aç karnına, hep aynı koşullarda ölç.</p>
+        <p className="mb-3 text-xs text-muted-foreground">İdeal olarak benzer koşullarda ölç; tek güne değil, eğilime bak.</p>
         <div className="space-y-3">
           <label className="block">
             <span className="mb-1 block text-xs text-muted-foreground">Tarih</span>
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
           </label>
           <label className="block">
-            <span className="mb-1 block text-xs text-muted-foreground">Kilo (kg)</span>
+            <span className="mb-1 block text-xs text-muted-foreground">Ölçüm değeri (kg)</span>
             <input
               type="number"
               inputMode="decimal"
@@ -402,10 +402,10 @@ function GoalEditor({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 p-3 sm:items-center" onClick={onClose}>
       <div className="w-full max-w-md rounded-3xl bg-card p-5 ring-1 ring-border" onClick={(e) => e.stopPropagation()}>
-        <h2 className="mb-2 text-lg font-semibold text-foreground">Hedef kilo (opsiyonel)</h2>
+        <h2 className="mb-2 text-lg font-semibold text-foreground">Hedef ölçüm (opsiyonel)</h2>
         <p className="mb-3 text-xs text-muted-foreground">Hedef zorunlu değil. Boş bırakırsan grafik sadece eğilimi gösterir.</p>
         <label className="block">
-          <span className="mb-1 block text-xs text-muted-foreground">Kilo (kg)</span>
+          <span className="mb-1 block text-xs text-muted-foreground">Ölçüm değeri (kg)</span>
           <input
             type="number"
             inputMode="decimal"

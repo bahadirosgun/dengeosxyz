@@ -174,7 +174,7 @@ export function InsightsScreen() {
           <Sparkles size={15} /> Sayıdan değil, davranıştan
         </p>
         <p className="mt-2 text-sm leading-relaxed text-foreground/80">
-          Burada tartı yok. Çünkü gerçek değişim küçük, tekrar eden davranışlardan doğar. Bir adımı
+          Burada tek bir ölçüme takılmak yok. Çünkü gerçek değişim küçük, tekrar eden davranışlardan doğar. Bir adımı
           bugün attığında zaten kazanıyorsun.
         </p>
       </section>

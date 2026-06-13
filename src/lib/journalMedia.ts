@@ -7,7 +7,7 @@ export type JournalTag = "meal" | "movement" | "weight" | "general";
 export const TAG_LABEL: Record<JournalTag, string> = {
   meal: "🍽️ Yemek",
   movement: "🏃 Hareket",
-  weight: "⚖️ Tartı",
+  weight: "Ölçüm",
   general: "🌿 Genel",
 };
 

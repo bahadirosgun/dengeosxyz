@@ -20,7 +20,7 @@ export function QuickAddFab() {
     { sheet: "mood", icon: Heart, label: "Ruh hali ve stres", desc: "5 saniyelik check-in" },
     { sheet: "water", icon: Droplets, label: "Su ekle", desc: "Bugünkü bardak sayısı" },
     { sheet: "steps", icon: Footprints, label: "Adım / yürüyüş", desc: "Kısa hareket kaydı" },
-    { sheet: "weight", icon: Scale, label: "Kilo", desc: "Nazik trend takibi" },
+    { sheet: "weight", icon: Scale, label: "Ölçüm", desc: "Nazik trend takibi" },
     { sheet: "photo", icon: Images, label: "Günce fotoğrafı", desc: "Yemek, hareket veya an" },
     { sheet: "journal", icon: BookHeart, label: "Günlük satırı", desc: "Bir cümle yeter" },
   ];
@@ -207,7 +207,7 @@ function WeightSheet({ onClose }: { onClose: () => void }) {
     onClose();
   };
   return (
-    <SheetShell title="Kilo ekle" onClose={onClose}>
+    <SheetShell title="Ölçüm ekle" onClose={onClose}>
       <input
         type="text"
         inputMode="decimal"

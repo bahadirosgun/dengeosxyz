@@ -19,7 +19,7 @@ export const Route = createFileRoute("/gunce")({
       {
         name: "description",
         content:
-          "Yemek, hareket, tartı ve günlük hayatından kareleri saklayarak kendi ilerleme defterini oluştur.",
+          "Yemek, hareket, ölçüm ve günlük hayatından kareleri saklayarak kendi ilerleme defterini oluştur.",
       },
       { property: "og:title", content: "Günce — DengeOS" },
       {

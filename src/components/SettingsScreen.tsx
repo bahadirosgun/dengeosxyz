@@ -24,6 +24,7 @@ import {
   getCache,
   persistDashboardWidgets,
   persistGender,
+  persistPersonalProfile,
   resetCache,
   type Gender,
   type WidgetKey,
@@ -33,7 +34,7 @@ import { useDashboardWidgets, useGender } from "@/lib/useAppData";
 const WIDGET_META: Record<WidgetKey, { label: string; desc: string }> = {
   steps: { label: "Adım", desc: "Bugünkü adım özeti" },
   movement: { label: "Hareket", desc: "Haftalık aktif zaman" },
-  weight: { label: "Tartı", desc: "Son kilo + eğilim" },
+  weight: { label: "Ölçüm", desc: "Son değer + eğilim" },
   habits: { label: "Alışkanlık", desc: "Bugün tamamlanan/oran" },
   phase: { label: "Döngü fazı", desc: "Sadece kadın profiller" },
   mood: { label: "Ruh hali", desc: "Hızlı erişim (yakında)" },
@@ -51,6 +52,9 @@ export function SettingsScreen() {
   const [reminder, setReminder] = useState<ReminderSettings>({ enabled: false, time: "20:00" });
   const [notifPerm, setNotifPerm] = useState<NotificationPermission | "unsupported">("default");
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [heightCm, setHeightCm] = useState("");
+  const [initialWeightKg, setInitialWeightKg] = useState("");
+  const [birthDate, setBirthDate] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const [email, setEmail] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -71,6 +75,10 @@ export function SettingsScreen() {
       setNotifPerm("unsupported");
     }
     supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
+    const personal = getCache().personal;
+    setHeightCm(personal.heightCm ? String(personal.heightCm) : "");
+    setInitialWeightKg(personal.initialWeightKg ? String(personal.initialWeightKg) : "");
+    setBirthDate(personal.birthDate ?? "");
   }, []);
 
   const flash = (msg: string) => {
@@ -139,7 +147,18 @@ export function SettingsScreen() {
     a.download = `zincir-yedek-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    flash("Yedek dosyası indirildi 🌿");
+    flash("Yedek dosyası indirildi.");
+  };
+
+  const savePersonal = () => {
+    const height = parseDecimal(heightCm);
+    const weight = parseDecimal(initialWeightKg);
+    persistPersonalProfile({
+      heightCm: height && height >= 100 && height <= 240 ? height : null,
+      initialWeightKg: weight && weight >= 30 && weight <= 250 ? weight : null,
+      birthDate: birthDate || null,
+    });
+    flash("Kişisel bilgiler kaydedildi.");
   };
 
   const importJson = (file: File) => {
@@ -266,10 +285,59 @@ export function SettingsScreen() {
                     : "bg-background text-foreground ring-border"
                 }`}
               >
-                {g === "female" ? "🌸 Kadın" : "🌿 Erkek"}
+                {g === "female" ? "Kadın" : "Erkek"}
               </button>
             ))}
           </div>
+        </div>
+        <div className="rounded-2xl bg-card p-4 ring-1 ring-border">
+          <p className="text-sm font-semibold text-foreground">Kişisel bilgiler</p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+            Önerileri daha tutarlı yapmak ve özel günlerini hatırlamak için kullanılır.
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <label className="rounded-2xl bg-background p-3 ring-1 ring-border">
+              <span className="text-[11px] text-muted-foreground">Boy</span>
+              <div className="mt-1 flex items-end gap-1">
+                <input
+                  inputMode="decimal"
+                  value={heightCm}
+                  onChange={(e) => setHeightCm(e.target.value)}
+                  placeholder="165"
+                  className="w-full bg-transparent text-xl font-semibold text-foreground outline-none placeholder:text-muted-foreground/35"
+                />
+                <span className="pb-0.5 text-xs text-muted-foreground">cm</span>
+              </div>
+            </label>
+            <label className="rounded-2xl bg-background p-3 ring-1 ring-border">
+              <span className="text-[11px] text-muted-foreground">Başlangıç</span>
+              <div className="mt-1 flex items-end gap-1">
+                <input
+                  inputMode="decimal"
+                  value={initialWeightKg}
+                  onChange={(e) => setInitialWeightKg(e.target.value)}
+                  placeholder="68"
+                  className="w-full bg-transparent text-xl font-semibold text-foreground outline-none placeholder:text-muted-foreground/35"
+                />
+                <span className="pb-0.5 text-xs text-muted-foreground">kg</span>
+              </div>
+            </label>
+          </div>
+          <label className="mt-2 block rounded-2xl bg-background p-3 ring-1 ring-border">
+            <span className="text-[11px] text-muted-foreground">Doğum günü</span>
+            <input
+              type="date"
+              value={birthDate}
+              onChange={(e) => setBirthDate(e.target.value)}
+              className="mt-1 w-full bg-transparent text-sm font-medium text-foreground outline-none"
+            />
+          </label>
+          <button
+            onClick={savePersonal}
+            className="mt-3 w-full rounded-2xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground"
+          >
+            Kaydet
+          </button>
         </div>
         {gender === "female" && (
         <Link
@@ -391,8 +459,15 @@ export function SettingsScreen() {
       )}
 
       <p className="mt-8 text-center text-xs text-muted-foreground">
-        Verilerin güvenli bir şekilde hesabına bağlı tutulur — yalnızca sen erişebilirsin. 🌿
+        Verilerin güvenli bir şekilde hesabına bağlı tutulur; yalnızca sen erişebilirsin.
       </p>
     </div>
   );
+}
+
+function parseDecimal(value: string): number | null {
+  const normalized = value.trim().replace(",", ".");
+  if (!normalized) return null;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
 }

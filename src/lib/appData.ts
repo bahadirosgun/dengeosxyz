@@ -15,6 +15,11 @@ import type { ReminderSettings } from "./reminder-types";
 const initialReminder: ReminderSettings = { enabled: false, time: "20:00" };
 
 export type Gender = "female" | "male";
+export type PersonalProfile = {
+  heightCm: number | null;
+  initialWeightKg: number | null;
+  birthDate: string | null;
+};
 export type WidgetKey =
   | "steps"
   | "movement"
@@ -43,6 +48,7 @@ interface Cache {
   onboarded: boolean;
   onboardingComplete: boolean;
   gender: Gender;
+  personal: PersonalProfile;
   dashboardWidgets: WidgetKey[];
   cycle: CycleSettings | null;
   reminder: ReminderSettings;
@@ -59,6 +65,7 @@ const cache: Cache = {
   onboarded: false,
   onboardingComplete: false,
   gender: "female",
+  personal: { heightCm: null, initialWeightKg: null, birthDate: null },
   dashboardWidgets: [...DEFAULT_WIDGETS],
   cycle: null,
   reminder: { ...initialReminder },
@@ -85,6 +92,7 @@ export const resetCache = () => {
   cache.onboarded = false;
   cache.onboardingComplete = false;
   cache.gender = "female";
+  cache.personal = { heightCm: null, initialWeightKg: null, birthDate: null };
   cache.dashboardWidgets = [...DEFAULT_WIDGETS];
   cache.cycle = null;
   cache.reminder = { ...initialReminder };
@@ -148,6 +156,11 @@ export async function loadAllForUser(userId: string): Promise<void> {
   cache.onboarded = prof?.onboarded ?? false;
   cache.onboardingComplete = prof?.onboarding_complete ?? false;
   cache.gender = (prof?.gender as Gender | undefined) ?? "female";
+  cache.personal = {
+    heightCm: prof?.height_cm ? Number(prof.height_cm) : null,
+    initialWeightKg: prof?.initial_weight_kg ? Number(prof.initial_weight_kg) : null,
+    birthDate: prof?.birth_date ?? null,
+  };
   const widgets = prof?.dashboard_widgets;
   cache.dashboardWidgets = Array.isArray(widgets)
     ? (widgets as WidgetKey[]).filter((w): w is WidgetKey =>
@@ -293,6 +306,39 @@ export function persistOnboardingComplete(value: boolean): void {
     .update({ onboarding_complete: value, updated_at: new Date().toISOString() })
     .eq("id", userId)
     .then(swallow("update onboarding_complete"));
+  emit();
+}
+
+export function persistPersonalProfile(value: PersonalProfile): void {
+  cache.personal = value;
+  const userId = cache.userId;
+  if (!userId) return;
+  const now = new Date().toISOString();
+  supabase
+    .from("profiles")
+    .update({
+      height_cm: value.heightCm,
+      initial_weight_kg: value.initialWeightKg,
+      birth_date: value.birthDate,
+      updated_at: now,
+    })
+    .eq("id", userId)
+    .then(swallow("update personal profile"));
+
+  if (value.initialWeightKg) {
+    supabase
+      .from("weight_entries")
+      .upsert(
+        {
+          user_id: userId,
+          date: now.slice(0, 10),
+          weight_kg: value.initialWeightKg,
+          note: "Başlangıç kaydı",
+        },
+        { onConflict: "user_id,date" },
+      )
+      .then(swallow("upsert initial weight"));
+  }
   emit();
 }
 

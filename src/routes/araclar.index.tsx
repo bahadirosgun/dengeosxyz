@@ -87,8 +87,8 @@ function ToolsPage() {
         {
           to: "/araclar/tarti" as const,
           icon: Scale,
-          title: "Tartı",
-          desc: "Tek ölçüm yerine nazik eğilime bak.",
+          title: "Ölçüm",
+          desc: "Tek sayıya değil, nazik eğilime bak.",
           color: "bg-earth-soft",
         },
       ],
