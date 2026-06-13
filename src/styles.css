@@ -75,6 +75,17 @@
   100% { transform: scale(1); }
 }
 
+@keyframes breathe {
+  0%, 100% {
+    transform: scale(0.82);
+    opacity: 0.72;
+  }
+  48% {
+    transform: scale(1.14);
+    opacity: 1;
+  }
+}
+
 :root {
   --radius: 1.25rem;
   /* Wellness green palette — single source of truth.
